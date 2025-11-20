@@ -29,7 +29,7 @@ const Index = () => {
   const [inputMessage, setInputMessage] = useState('');
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
 
-  const sendMessage = () => {
+  const sendMessage = async () => {
     if (!inputMessage.trim()) return;
 
     const userMessage: Message = {
@@ -40,17 +40,46 @@ const Index = () => {
     };
 
     setMessages((prev) => [...prev, userMessage]);
+    const messageToSend = inputMessage;
     setInputMessage('');
 
-    setTimeout(() => {
-      const aiResponse: Message = {
+    try {
+      const response = await fetch('https://functions.poehali.dev/97c8fdf5-107b-4190-823f-88520531429f', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ message: messageToSend }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.message) {
+        const aiResponse: Message = {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: data.message,
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, aiResponse]);
+      } else {
+        const errorMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: `Ошибка: ${data.error || 'Не удалось получить ответ'}`,
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, errorMessage]);
+      }
+    } catch (error) {
+      const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: 'Я обработал ваш запрос. В полной версии здесь будет подключение к реальной AI-модели.',
+        content: 'Произошла ошибка при отправке сообщения. Проверьте подключение к интернету.',
         timestamp: new Date(),
       };
-      setMessages((prev) => [...prev, aiResponse]);
-    }, 1000);
+      setMessages((prev) => [...prev, errorMessage]);
+    }
   };
 
   return (
